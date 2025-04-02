@@ -4,6 +4,7 @@ import {
   ref,
   push,
   onValue,
+  remove,
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
 
 const firebaseConfig = {
@@ -20,32 +21,48 @@ const inputFieldEl = document.getElementById("input-field");
 const btnAddEl = document.getElementById("btn-add");
 const listEl = document.getElementById("list");
 
-function appendItemToListEl(itemValue) {
-  listEl.innerHTML += `<li>${itemValue}</li>`;
+function appendItemToListEl(itemValue, itemId) {
+  const li = document.createElement("li");
+  li.textContent = itemValue;
+  li.dataset.id = itemId; // Store the Firebase ID as a data attribute
+  listEl.appendChild(li);
+
+  // Add click event to delete
+  li.addEventListener("click", function () {
+    const itemRef = ref(database, `cart/${itemId}`);
+    remove(itemRef)
+      .then(() => {
+        console.log("Item removed successfully");
+      })
+      .catch((error) => {
+        console.error("Error removing item: ", error);
+      });
+  });
 }
 
 function clearInputEl() {
   inputFieldEl.value = "";
 }
 
-function clearListEl(){
-    listEl.innerHTML = "";
+function clearListEl() {
+  listEl.innerHTML = "";
 }
 
 onValue(cartDB, function (snapshot) {
-  if (snapshot.val() != null) {
-    let listArray = Object.values(snapshot.val());
+  if (snapshot.exists()) {
     clearListEl();
-    for (let i = 0; i < listArray.length; i++) {
-      appendItemToListEl(listArray[i]);
-    }
+    // Get both the key (ID) and value for each item
+    Object.entries(snapshot.val()).forEach(([id, value]) => {
+      appendItemToListEl(value, id);
+    });
+  } else {
+    clearListEl(); // Clear list if database is empty
   }
 });
 
 btnAddEl.addEventListener("click", function () {
   if (inputFieldEl.value !== "") {
     let inputValue = inputFieldEl.value;
-    console.log(inputValue);
     push(cartDB, inputValue);
     clearInputEl();
   }
