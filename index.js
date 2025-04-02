@@ -4,12 +4,11 @@ import {
   ref,
   push,
   onValue,
-  remove,
+  remove
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
 
 const firebaseConfig = {
-  databaseURL:
-    "https://pretzl-maker-default-rtdb.europe-west1.firebasedatabase.app/",
+  databaseURL: "https://pretzl-maker-default-rtdb.europe-west1.firebasedatabase.app/"
 };
 
 // Initialize Firebase
@@ -21,23 +20,42 @@ const inputFieldEl = document.getElementById("input-field");
 const btnAddEl = document.getElementById("btn-add");
 const listEl = document.getElementById("list");
 
+// Add mobile-friendly CSS styles programmatically
+const style = document.createElement('style');
+style.textContent = `
+  li {
+    padding: 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+    min-height: 48px;
+    line-height: 1.5;
+    margin: 4px 0;
+    border-bottom: 1px solid #eee;
+  }
+  li:active {
+    background-color: #f0f0f0;
+  }
+`;
+document.head.appendChild(style);
+
 function appendItemToListEl(itemValue, itemId) {
   const li = document.createElement("li");
   li.textContent = itemValue;
-  li.dataset.id = itemId; // Store the Firebase ID as a data attribute
-  listEl.appendChild(li);
-
-  // Add click event to delete
-  li.addEventListener("click", function () {
-    const itemRef = ref(database, `cart/${itemId}`);
-    remove(itemRef)
-      .then(() => {
-        console.log("Item removed successfully");
-      })
-      .catch((error) => {
-        console.error("Error removing item: ", error);
-      });
+  li.dataset.id = itemId;
+  
+  // Use pointerdown for both mouse and touch devices
+  li.addEventListener("pointerdown", function(e) {
+    e.preventDefault();
+    if (confirm("Delete this item?")) {
+      const itemRef = ref(database, `cart/${itemId}`);
+      remove(itemRef)
+        .then(() => console.log("Item deleted"))
+        .catch((error) => console.error("Error deleting item:", error));
+    }
   });
+  
+  listEl.appendChild(li);
 }
 
 function clearInputEl() {
@@ -48,22 +66,29 @@ function clearListEl() {
   listEl.innerHTML = "";
 }
 
-onValue(cartDB, function (snapshot) {
+onValue(cartDB, function(snapshot) {
+  clearListEl();
+  
   if (snapshot.exists()) {
-    clearListEl();
-    // Get both the key (ID) and value for each item
     Object.entries(snapshot.val()).forEach(([id, value]) => {
       appendItemToListEl(value, id);
     });
-  } else {
-    clearListEl(); // Clear list if database is empty
   }
 });
 
-btnAddEl.addEventListener("click", function () {
-  if (inputFieldEl.value !== "") {
-    let inputValue = inputFieldEl.value;
-    push(cartDB, inputValue);
-    clearInputEl();
+btnAddEl.addEventListener("click", function() {
+  const inputValue = inputFieldEl.value.trim();
+  if (inputValue !== "") {
+    push(cartDB, inputValue)
+      .then(() => clearInputEl())
+      .catch((error) => console.error("Error adding item:", error));
   }
 });
+
+// Add viewport meta tag if it doesn't exist (for mobile responsiveness)
+if (!document.querySelector('meta[name="viewport"]')) {
+  const meta = document.createElement('meta');
+  meta.name = "viewport";
+  meta.content = "width=device-width, initial-scale=1";
+  document.head.appendChild(meta);
+}
